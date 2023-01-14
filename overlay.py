@@ -1,7 +1,8 @@
 """
 Window that sticks to the top of the screen
 """
-
+from AppKit import NSScreen
+from AppKit import NSWorkspace
 import sys
 from PySide6.QtWidgets import *
 from PySide6.QtCore import *
@@ -11,11 +12,11 @@ import pyautogui
 from pyautogui import *
 import time
 import math
-import autoit
+#import autoit
 import keyboard
-import win32api
-import win32gui
-import winsound
+#import win32api
+#import win32gui
+#import winsound
 import PIL
 import PIL.ImageGrab
 import colorama
@@ -25,9 +26,45 @@ import webbrowser
 from modules import *
 import traceback
 import tempfile
+import playsound
+from pynput import keyboard
+import threading
+
+#快捷键检测
+keyCheck = False
+
+def on_press(key):
+    try:
+        if(key.char=='1' and keyCheck):
+            click_signal('1')
+        elif(key.char=='2' and keyCheck):
+            click_signal('2')
+        elif(key.char=='3' and keyCheck):
+            click_signal('3')
+    except AttributeError:
+        pass
+
+'''def on_release(key):
+    print('{0} released'.format(
+        key))
+    if key == keyboard.Key.esc:
+        # Stop listener
+        return False'''
+
+def keyBoardEvent():
+    # Collect events until released
+    with keyboard.Listener(on_press=on_press,on_release=False) as listener:
+        listener.join()
+
+    # ...or, in a non-blocking fashion:
+    listener = keyboard.Listener(
+        on_press=on_press,
+        on_release=False)
+    listener.start()
+threading.Thread(target=keyBoardEvent).start()
 
 keyboardThread = None
-ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('sgplus.04')
+#ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('sgplus.04')
 starttime = time.time()
 version = "v0.4"
 color_vals = {
@@ -69,9 +106,8 @@ def click_signal(sig):
     :param sig:
     :return:
     """
-    if win32gui.GetWindowText(win32gui.GetForegroundWindow()) != "Roblox":
-        return
-
+    #if win32gui.GetWindowText(win32gui.GetForegroundWindow()) != "Roblox":
+    #    return
     if scan_for_dialog("signal"):
         time.sleep(key_wait)
         keyboard.press_and_release(sig)
@@ -84,8 +120,8 @@ def click_camera_button():
     Clicks the camera button
     :return:
     """
-    if win32gui.GetWindowText(win32gui.GetForegroundWindow()) != "Roblox":
-        return
+    #if win32gui.GetWindowText(win32gui.GetForegroundWindow()) != "Roblox":
+    #    return
 
     if pyautogui.locateCenterOnScreen('rotate.png', confidence=0.9):
         keyboard.press_and_release("backspace")
@@ -130,13 +166,13 @@ def click_camera_button():
 
 
 def able_to_run():
-    if win32gui.GetWindowText(win32gui.GetForegroundWindow()) != "Roblox":
+    '''if win32gui.GetWindowText(win32gui.GetForegroundWindow()) != "Roblox":
         logfile = open("log.txt", "a")
         if debug: logfile.write("Not in Roblox\n")
         logfile.close()
         return False
-    else:
-        return True
+    else:'''
+    return True
 
 
 def scan_for_dialog(type):
@@ -146,15 +182,15 @@ def scan_for_dialog(type):
         mousex = mouse_pos[0]
         mousey = mouse_pos[1]
 
-        window = win32gui.GetForegroundWindow()
+        '''window = win32gui.GetForegroundWindow()
         autoit.mouse_click("left")
         rect = win32gui.GetWindowRect(window)
 
-        bbox = [rect[0], rect[1], rect[2] - rect[0], rect[3] - rect[1]]
-        x = bbox[0]
-        y = bbox[1]
-        w = bbox[2]
-        h = bbox[3]
+        bbox = [rect[0], rect[1], rect[2] - rect[0], rect[3] - rect[1]]'''
+        x = 0
+        y = 0
+        w = 2560
+        h = 1600
         time.sleep(
             dialog_wait)  # Wait for a set time before checking if the dialog actually pops up. This ensures there should be no time when the script screengrabs and the dialog isn't open after clicking on a signal.
         start_time_perf = time.perf_counter()
@@ -166,7 +202,7 @@ def scan_for_dialog(type):
         dialog_box_x = mousex - dialog_box_width / 2
         dialog_box_y = mousey - dialog_box_height
 
-        capture = screen_grab(dialog_box_x, dialog_box_y, dialog_box_width, dialog_box_height * 2)
+        capture = screen_grab(int(dialog_box_x), int(dialog_box_y), int(dialog_box_width), int(dialog_box_height * 2))
         w, h = capture.size
         capture.convert('RGB')
         shelf = h / 2 * 1.15  # Where the colors we need to check are
@@ -177,13 +213,17 @@ def scan_for_dialog(type):
         lowershelf = lower.crop((0, lowerh * 2 / 3, lowerw, lowerh * 2 / 3 + 1))
         uppershelf = upper.crop((0, upperh / 2, upperw, upperh / 2 + 2))
         imagesToProcess = [lowershelf, uppershelf]
-
         flag = False
         for image in imagesToProcess:
             for i in range(math.ceil(image.width / 1.6)):
                 for val in color_vals:
                     if i == 0 or image.height == 0: break
-                    r, g, b = image.getpixel((i, image.height - 1))
+                    '''debug:
+                    print(imagesToProcess)
+                    #print(image.getpixel((i, image.height - 1)))'''
+                    #r, g, b = image.getpixel((i, image.height - 1))
+                    r, g, b, a = image.getpixel((i, image.height - 1))
+                    #print(r, g, b, val)
                     if color_approx_eq((r, g, b), (val)):
                         flag = True
                         break
@@ -194,6 +234,7 @@ def scan_for_dialog(type):
         if flag:
             return True
         else:
+            print('No dialog found')
             if debug:
                 logfile = open("log.txt", "a")
                 logfile.write("No dialog found\n")
@@ -322,9 +363,9 @@ class Overlay(QMainWindow):
         self.newX = None
         self.newY = None
         self.rt = None
-        user32 = ctypes.windll.user32
-        user32.SetProcessDPIAware()
-        screensize: tuple = user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)
+        #user32 = ctypes.windll.user32
+        #user32.SetProcessDPIAware()
+        screensize: tuple = NSScreen.mainScreen().frame().size.width, NSScreen.mainScreen().frame().size.height#修改位置：通过AppKit获取屏幕分辨率
         # Window modifiers
         self.move(0, 0)
         self.resize(screensize[0] * 0.1, screensize[1] * 0.035)
@@ -351,24 +392,30 @@ class Overlay(QMainWindow):
         self.separator.move(0, self.height())
         self.setLayout(self.layout)
 
-        keyboard.add_hotkey(self.config["toggle_key"], self.toggle_disable)  # F1
+        #keyboard.add_hotkey(self.config["toggle_key"], self.toggle_disable)  # F1
 
         if not self.disabled:
             self.add_hotkeys()
 
     def add_hotkeys(self):
-        keyboard.add_hotkey(2, click_signal, args=["1"])  # 1
+        '''keyboard.add_hotkey(2, click_signal, args=["1"])  # 1
         keyboard.add_hotkey(3, click_signal, args=["2"])  # 2
         keyboard.add_hotkey(4, click_signal, args=["3"])  # 3
         keyboard.add_hotkey(46, click_camera_button)  # C
-        winsound.Beep(500, 100)
+        #winsound.Beep(500, 100)'''
+        global keyCheck
+        keyCheck = True
+        playsound.playsound('Submarine.aiff')
 
     def remove_hotkeys(self):
-        keyboard.remove_hotkey(2)
+        '''keyboard.remove_hotkey(2)
         keyboard.remove_hotkey(3)
         keyboard.remove_hotkey(4)
         keyboard.remove_hotkey(46)
-        winsound.Beep(400, 100)
+        #winsound.Beep(400, 100)'''
+        global keyCheck
+        keyCheck = False
+        playsound.playsound('Funk.aiff')
 
     def toggle_disable(self):
         if self.disabled:
