@@ -1,4 +1,3 @@
-autoit==0.6.5
 colorama==0.4.6
 keyboard==0.13.5
 Pillow==9.4.0
